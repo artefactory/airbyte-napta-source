@@ -10,11 +10,15 @@ class NaptaStream(HttpStream, ABC):
     primary_key = "id"
     url_base = "https://app.napta.io/api/v1/"
 
-    def __init__(self, authenticator: Oauth2Authenticator, config: Mapping[str, Any]) -> None:
+    def __init__(
+        self, authenticator: Oauth2Authenticator, config: Mapping[str, Any]
+    ) -> None:
         self.config = config
         super().__init__(authenticator=authenticator)
 
-    def next_page_token(self, response: requests.Response) -> Optional[Mapping[str, Any]]:
+    def next_page_token(
+        self, response: requests.Response
+    ) -> Optional[Mapping[str, Any]]:
         response_json = response.json()
         next_page = response_json.get("links").get("next")
         if next_page:
@@ -30,15 +34,61 @@ class NaptaStream(HttpStream, ABC):
         if next_page_token:
             # Here's the pagination logic
             # As I have not found a way to insert the next url directly, I split it to get the page number
-            return {"page[number]": next_page_token["next_url"].split("=")[-1], "page[size]": self.config["page_size"]}
+            return {
+                "page[number]": next_page_token["next_url"].split("=")[-1],
+                "page[size]": self.config["page_size"],
+            }
         return {"page[size]": self.config["page_size"]}
 
-    def parse_response(self, response: requests.Response, **kwargs) -> Iterable[Mapping]:
+    def parse_response(
+        self, response: requests.Response, **kwargs
+    ) -> Iterable[Mapping]:
         yield from response.json()["data"]
 
 
-class IncrementalNaptaStream(NaptaStream):
-    pass
+# Standard json body request
+# {
+#   "availability": { "start_date": "2020-01-01", "end_date": "2021-01-01" },
+#   "unit": "TO",
+#   "period": "day",
+#   "user_id": [],
+#   "user_tag_id": [],
+#   "skills": [],
+#   "project_id": [],
+#   "user_position_id": [],
+#   "location_id": [],
+#   "client_id": [],
+#   "business_unit_id": [],
+#   "projectstatus_id": [],
+#   "projectcategory_id": [],
+#   "userproject_status_id": [],
+#   "userprojectperiod_status_id": [],
+#   "staffing_type": [],
+# }
+
+# Answer has a meta.count field which gives the number of people in total in the slice.
+# meta.count / 30 = max page
+
+
+class Staffing(NaptaStream):
+    primary_key = "id"
+
+    def path(self, **kwargs) -> str:
+        return "staffing"
+
+    def parse_response(
+        self, response: requests.Response, **kwargs
+    ) -> Iterable[Mapping]:
+        data = response.json()["data"]
+
+        transformed_data = {}
+        for date, user_data in data["data"].items():
+            for user, user_details in user_data["user"].items():
+                if user not in transformed_data:
+                    transformed_data[user] = {}
+                transformed_data[user][date] = user_details
+
+        return transformed_data
 
 
 class UserConfig(NaptaStream):
