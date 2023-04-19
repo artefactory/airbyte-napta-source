@@ -4,6 +4,8 @@ from typing import Any, Iterable, Mapping, MutableMapping, Optional
 import requests
 from airbyte_cdk.sources.streams.http.auth import Oauth2Authenticator
 from airbyte_cdk.sources.streams.http.http import HttpStream
+import math
+import datetime
 
 
 class NaptaStream(HttpStream, ABC):
@@ -71,7 +73,18 @@ class NaptaStream(HttpStream, ABC):
 
 
 class Staffing(NaptaStream):
-    primary_key = "id"
+    primary_key = "user_id"
+    url_base = "https://app.napta.io/api/v1/"
+
+    def __init__(
+        self, authenticator: Oauth2Authenticator, config: Mapping[str, Any]
+    ) -> None:
+        self.start_date = "2018-01-01"
+        self.end_date = datetime.datetime.today().strftime("%Y-%m-%d")
+        super().__init__(authenticator=authenticator, config=config)
+
+    def http_method(self) -> str:
+        return "POST"
 
     def path(self, **kwargs) -> str:
         return "staffing"
@@ -79,16 +92,56 @@ class Staffing(NaptaStream):
     def parse_response(
         self, response: requests.Response, **kwargs
     ) -> Iterable[Mapping]:
-        data = response.json()["data"]
+        data = response.json()
 
-        transformed_data = {}
-        for date, user_data in data["data"].items():
-            for user, user_details in user_data["user"].items():
-                if user not in transformed_data:
-                    transformed_data[user] = {}
-                transformed_data[user][date] = user_details
+        output_data = []
+        for date, data in data["data"].items():
+            for user_id, user_data in data["user"].items():
+                transformed_data = {"user_id": int(user_id), "date": date, **user_data}
+                output_data.append(transformed_data)
 
-        return transformed_data
+        data["data"] = output_data
+
+        return data
+
+    def request_body_json(
+        self,
+        stream_state: Mapping[str, Any],
+        stream_slice: Mapping[str, Any] = None,
+        next_page_token: Mapping[str, Any] = None,
+    ) -> Optional[Mapping]:
+        return {
+            "availability": {
+                "start_date": self.start_date,  # Ici à remplacer par une fenêtre qui change
+                "end_date": self.end_date,
+            },
+            "unit": "TO",
+            "period": "day",
+        }
+
+    def request_params(
+        self,
+        stream_state: Optional[Mapping[str, Any]],
+        stream_slice: Optional[Mapping[str, Any]] = None,
+        next_page_token: Optional[Mapping[str, Any]] = None,
+    ) -> MutableMapping[str, Any]:
+        if next_page_token:
+            # Here's the pagination logic
+            return {
+                "page[number]": next_page_token["next_page"],
+                "page[size]": 1,
+            }
+        return {"page[size]": 1}
+
+    def next_page_token(
+        self, response: requests.Response, next_page_token: Mapping[str, Any] = None
+    ) -> Optional[Mapping[str, Any]]:
+        response_json = response.json()
+        if response_json["total_availability"] is not None:
+            return {
+                "next_page": next_page_token["next_page"] + 1,
+            }
+        return None
 
 
 class UserConfig(NaptaStream):
