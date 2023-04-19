@@ -73,8 +73,7 @@ class NaptaStream(HttpStream, ABC):
 
 
 class Staffing(NaptaStream):
-    primary_key = "user_id"
-    url_base = "https://app.napta.io/api/v1/"
+    http_method = "POST"
 
     def __init__(
         self, authenticator: Oauth2Authenticator, config: Mapping[str, Any]
@@ -82,9 +81,6 @@ class Staffing(NaptaStream):
         self.start_date = "2018-01-01"
         self.end_date = datetime.datetime.today().strftime("%Y-%m-%d")
         super().__init__(authenticator=authenticator, config=config)
-
-    def http_method(self) -> str:
-        return "POST"
 
     def path(self, **kwargs) -> str:
         return "staffing"
@@ -97,12 +93,25 @@ class Staffing(NaptaStream):
         output_data = []
         for date, data in data["data"].items():
             for user_id, user_data in data["user"].items():
-                transformed_data = {"user_id": int(user_id), "date": date, **user_data}
+                transformed_data = {
+                    "user_id": int(user_id),
+                    "date": date,
+                    "user_project": {},
+                    **user_data["global"],
+                }
+
+                # Check if "user_project" is not empty
+                if "user_project" in user_data and user_data["user_project"]:
+                    # Extract project_id and add to transformed_data
+                    project_id = list(user_data["user_project"].keys())[0]
+                    transformed_data["user_project"] = {
+                        "project_id": int(project_id),
+                        **user_data["user_project"][project_id],
+                    }
+
                 output_data.append(transformed_data)
 
-        data["data"] = output_data
-
-        return data
+        return output_data
 
     def request_body_json(
         self,
@@ -137,11 +146,11 @@ class Staffing(NaptaStream):
         self, response: requests.Response, next_page_token: Mapping[str, Any] = None
     ) -> Optional[Mapping[str, Any]]:
         response_json = response.json()
-        if response_json["total_availability"] is not None:
+        if next_page_token is not None:
             return {
-                "next_page": next_page_token["next_page"] + 1,
+                "next_page": (next_page_token["next_page"] or 0) + 1,
             }
-        return None
+        return {"next_page": 1}
 
 
 class UserConfig(NaptaStream):

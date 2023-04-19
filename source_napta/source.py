@@ -45,8 +45,6 @@ from .streams import (
     Projectstatus,
     ProjectTag,
     ProjectTagType,
-    ResumeTemplate,
-    RexTemplate,
     Skill,
     SkillCategory,
     Timesheet,
