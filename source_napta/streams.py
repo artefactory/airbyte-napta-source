@@ -50,11 +50,16 @@ class NaptaStream(HttpStream, ABC):
     def backoff_time(self, response: requests.Response) -> Optional[float]:
         if "Retry-After" in response.headers:
             if response.headers["Retry-After"] > 0:
-                self.logger.info(f"API Limit hit, backing off for {response.headers["Retry-After""]}")
+                self.logger.info(
+                    "API Limit hit, backing off for {}".format(
+                        response.headers["Retry-After"]
+                    )
+                )
                 return int(response.headers["Retry-After"])
             else:
                 self.logger.info(
-                    "API Limit hit, backing off for 5s because Retry-After header content is invalid")
+                    "API Limit hit, backing off for 5s because Retry-After header content is invalid"
+                )
                 return 5
         else:
             self.logger.info(
@@ -150,8 +155,8 @@ class Staffing(NaptaStream):
     def request_params(
         self,
         stream_state: Optional[Mapping[str, Any]],
-        stream_slice: Optional[Mapping[str, Any]]=None,
-        next_page_token: Optional[Mapping[str, Any]]=None,
+        stream_slice: Optional[Mapping[str, Any]] = None,
+        next_page_token: Optional[Mapping[str, Any]] = None,
     ) -> MutableMapping[str, Any]:
         if next_page_token:
             # Here's the pagination logic
@@ -162,7 +167,7 @@ class Staffing(NaptaStream):
         return {"page[size]": 1}
 
     def next_page_token(
-        self, response: requests.Response, next_page_token: Mapping[str, Any]=None
+        self, response: requests.Response, next_page_token: Mapping[str, Any] = None
     ) -> Optional[Mapping[str, Any]]:
         response_json = response.json()
         if self.current_page < response_json["meta"]["count"]:
