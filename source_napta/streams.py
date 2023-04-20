@@ -104,26 +104,28 @@ class Staffing(NaptaStream):
         data = response.json()
 
         output_data = []
-        for date, data in data["data"].items():
-            for user_id, user_data in data["user"].items():
-                transformed_data = {
-                    "user_id": int(user_id),
-                    "date": date,
-                    "user_project": {},
-                    **user_data["global"],
-                }
-
-                # Check if "user_project" is not empty
-                if "user_project" in user_data and user_data["user_project"]:
-                    # Extract project_id and add to transformed_data
-                    project_id = list(user_data["user_project"].keys())[0]
-                    transformed_data["user_project"] = {
-                        "project_id": int(project_id),
-                        **user_data["user_project"][project_id],
+        try:
+            for date, data in data["data"].items():
+                for user_id, user_data in data["user"].items():
+                    transformed_data = {
+                        "user_id": int(user_id),
+                        "date": date,
+                        "user_project": {},
+                        **user_data["global"],
                     }
 
-                output_data.append(transformed_data)
+                    # Check if "user_project" is not empty
+                    if "user_project" in user_data and user_data["user_project"]:
+                        # Extract project_id and add to transformed_data
+                        project_id = list(user_data["user_project"].keys())[0]
+                        transformed_data["user_project"] = {
+                            "project_id": int(project_id),
+                            **user_data["user_project"][project_id],
+                        }
 
+                    output_data.append(transformed_data)
+        except:
+            pass
         return output_data
 
     def request_body_json(
