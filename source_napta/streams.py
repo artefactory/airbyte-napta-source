@@ -47,6 +47,18 @@ class NaptaStream(HttpStream, ABC):
     ) -> Iterable[Mapping]:
         yield from response.json()["data"]
 
+    def backoff_time(self, response: requests.Response) -> Optional[float]:
+        if "Retry-After" in response.headers:
+            if response.headers["Retry-After"] > 0:
+                return int(response.headers["Retry-After"])
+            else:
+                return 5
+        else:
+            self.logger.info(
+                "Retry-after header not found. Using default backoff value"
+            )
+            return 5
+
 
 # Standard json body request
 # {
@@ -80,6 +92,7 @@ class Staffing(NaptaStream):
     ) -> None:
         self.start_date = "2018-01-01"
         self.end_date = datetime.datetime.today().strftime("%Y-%m-%d")
+        self.current_page = 0
         super().__init__(authenticator=authenticator, config=config)
 
     def path(self, **kwargs) -> str:
@@ -146,11 +159,12 @@ class Staffing(NaptaStream):
         self, response: requests.Response, next_page_token: Mapping[str, Any] = None
     ) -> Optional[Mapping[str, Any]]:
         response_json = response.json()
-        if next_page_token is not None:
+        if self.current_page < response_json["meta"]["count"]:
+            self.current_page += 1
             return {
-                "next_page": (next_page_token["next_page"] or 0) + 1,
+                "next_page": self.current_page,
             }
-        return {"next_page": 1}
+        return None
 
 
 class UserConfig(NaptaStream):
