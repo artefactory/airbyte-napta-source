@@ -49,7 +49,7 @@ class NaptaStream(HttpStream, ABC):
 
     def backoff_time(self, response: requests.Response) -> Optional[float]:
         if "Retry-After" in response.headers:
-            if response.headers["Retry-After"] > 0:
+            if int(response.headers["Retry-After"]) > 0:
                 self.logger.info(
                     "API Limit hit, backing off for {}".format(
                         response.headers["Retry-After"]

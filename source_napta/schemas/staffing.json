@@ -1,42 +1,53 @@
 {
   "$schema": "http://json-schema.org/schema#",
   "properties": {
-    "user_id": {
-      "type": "string"
-    },
     "date": {
       "type": "string"
     },
-    "user_project": {
-      "properties": {
-        "project_id": {
-          "type": "string"
-        },
-        "forecast": {
-          "properties": {
-            "rate": {
-              "type": "string"
-            },
-            "details": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
     "global": {
       "properties": {
-        "global": {
+        "forecast": {
           "properties": {
-            "rate": {
-              "type": "string"
-            },
             "details": {
-              "type": "string"
+              "type": [
+                "null",
+                "number"
+              ]
+            },
+            "rate": {
+              "type": [
+                "null",
+                "number"
+              ]
             }
-          }
+          },
+          "type": "object"
         }
-      }
+      },
+      "type": "object"
+    },
+    "user_id": {
+      "type": "integer"
+    },
+    "user_project": {
+      "properties": {
+        "forecast": {
+          "properties": {
+            "details": {
+              "type": "number"
+            },
+            "rate": {
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "project_id": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
     }
-  }
+  },
+  "type": "object"
 }
