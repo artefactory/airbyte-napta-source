@@ -22,8 +22,7 @@ class NaptaStream(HttpStream, ABC):
         self, response: requests.Response
     ) -> Optional[Mapping[str, Any]]:
         response_json = response.json()
-        next_page = response_json.get("links").get("next")
-        if next_page:
+        if next_page := response_json.get("links").get("next"):
             return {"next_url": next_page}
         return None
 
@@ -51,9 +50,7 @@ class NaptaStream(HttpStream, ABC):
         if "Retry-After" in response.headers:
             if int(response.headers["Retry-After"]) > 0:
                 self.logger.info(
-                    "API Limit hit, backing off for {}".format(
-                        response.headers["Retry-After"]
-                    )
+                    f'API Limit hit, backing off for {response.headers["Retry-After"]}'
                 )
                 return int(response.headers["Retry-After"])
             else:
@@ -99,7 +96,7 @@ class Staffing(NaptaStream):
         self, authenticator: Oauth2Authenticator, config: Mapping[str, Any]
     ) -> None:
         self.start_date = "2018-01-01"
-        self.end_date = datetime.datetime.today().strftime("%Y-%m-%d")
+        self.end_date = datetime.datetime.now().strftime("%Y-%m-%d")
         self.current_page = 0
         super().__init__(authenticator=authenticator, config=config)
 
@@ -119,29 +116,40 @@ class Staffing(NaptaStream):
                         "user_id": int(user_id),
                         "date": date,
                         "user_project": {},
+                        "holiday": {},
                         **user_data["global"],
                     }
 
                     # Check if "user_project" is not empty
-                    if "user_project" in user_data and user_data["user_project"]:
-                        # Extract project_id and add to transformed_data
-                        project_id = list(user_data["user_project"].keys())[0]
-                        transformed_data["user_project"] = {
-                            "project_id": int(project_id),
-                            **user_data["user_project"][project_id],
-                        }
+                    if "user_project" in user_data:
+                        if user_data["user_project"]:
+                            # Extract project_id and add to transformed_data
+                            project_id = list(user_data["user_project"].keys())[0]
+                            transformed_data["user_project"] = {
+                                "project_id": int(project_id),
+                                **user_data["user_project"][project_id],
+                            }
+
+                    # Ditto with holiday
+                    if "holiday" in user_data:
+                        if user_data["holiday"]:
+                            holiday_id = list(user_data["holiday"].keys())[0]
+                            transformed_data["holiday"] = {
+                                "type": holiday_id,
+                                **user_data["holiday"][holiday_id],
+                            }
 
                     output_data.append(transformed_data)
-        except:
-            self.logger.info("Empty page, nothing returned")
+        except Exception as e:
+            self.logger.info(f"ERROR on stream staffing: {e}")
             return {}
         return output_data
 
     def request_body_json(
         self,
         stream_state: Mapping[str, Any],
-        stream_slice: Mapping[str, Any] = None,
-        next_page_token: Mapping[str, Any] = None,
+        stream_slice: Mapping[str, Any] = None,  # type: ignore
+        next_page_token: Mapping[str, Any] = None,  # type: ignore
     ) -> Optional[Mapping]:
         return {
             "availability": {
@@ -167,7 +175,7 @@ class Staffing(NaptaStream):
         return {"page[size]": 1}
 
     def next_page_token(
-        self, response: requests.Response, next_page_token: Mapping[str, Any] = None
+        self, response: requests.Response, next_page_token: Mapping[str, Any] = None  # type: ignore
     ) -> Optional[Mapping[str, Any]]:
         response_json = response.json()
         if self.current_page < response_json["meta"]["count"]:
