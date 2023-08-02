@@ -1,10 +1,11 @@
 from abc import ABC
+from pathlib import Path
 from typing import Any, Iterable, Mapping, MutableMapping, Optional
 
 import requests
+import yaml
 from airbyte_cdk.sources.streams.http.auth import Oauth2Authenticator
 from airbyte_cdk.sources.streams.http.http import HttpStream
-import math
 import datetime
 
 
@@ -16,6 +17,10 @@ class NaptaStream(HttpStream, ABC):
         self, authenticator: Oauth2Authenticator, config: Mapping[str, Any]
     ) -> None:
         self.config = config
+
+        if "page_size" not in self.config:
+            self.config["page_size"] = self.get_default_property_value("page_size")
+
         super().__init__(authenticator=authenticator)
 
     def next_page_token(
@@ -63,6 +68,14 @@ class NaptaStream(HttpStream, ABC):
                 "Retry-after header not found. Using default backoff value"
             )
             return 5
+
+    def get_default_property_value(self, property: str):
+        spec_file_path = Path(__file__).parent / "spec.yaml"
+        with open(spec_file_path, "r") as file:
+            spec = yaml.safe_load(file)
+
+        property_value = spec["connectionSpecification"]["properties"][property]["default"]
+        return property_value
 
 
 # Standard json body request
