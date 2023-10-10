@@ -74,8 +74,7 @@ class NaptaStream(HttpStream, ABC):
         with open(spec_file_path, "r") as file:
             spec = yaml.safe_load(file)
 
-        property_value = spec["connectionSpecification"]["properties"][property]["default"]
-        return property_value
+        return spec["connectionSpecification"]["properties"][property]["default"]
 
 
 # Standard json body request
@@ -128,7 +127,7 @@ class Staffing(NaptaStream):
                     transformed_data = {
                         "user_id": int(user_id),
                         "date": date,
-                        "user_project": {},
+                        "user_project": [],
                         "holiday": {},
                         **user_data["global"],
                     }
@@ -136,12 +135,16 @@ class Staffing(NaptaStream):
                     # Check if "user_project" is not empty
                     if "user_project" in user_data:
                         if user_data["user_project"]:
-                            # Extract project_id and add to transformed_data
-                            project_id = list(user_data["user_project"].keys())[0]
-                            transformed_data["user_project"] = {
-                                "project_id": int(project_id),
-                                **user_data["user_project"][project_id],
-                            }
+                            for project_id, project_data in user_data[
+                                "user_project"
+                            ].items():
+                                # Extract project_id and add to transformed_data
+                                transformed_data["user_project"].append(
+                                    {
+                                        "project_id": int(project_id),
+                                        **project_data,
+                                    }
+                                )
 
                     # Ditto with holiday
                     if "holiday" in user_data:

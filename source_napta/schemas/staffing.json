@@ -24,23 +24,26 @@
 			"type": "integer"
 		},
 		"user_project": {
-			"properties": {
-				"forecast": {
-					"properties": {
-						"details": {
-							"type": "number"
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"forecast": {
+						"properties": {
+							"details": {
+								"type": "number"
+							},
+							"rate": {
+								"type": "number"
+							}
 						},
-						"rate": {
-							"type": "number"
-						}
+						"type": "object"
 					},
-					"type": "object"
-				},
-				"project_id": {
-					"type": "integer"
+					"project_id": {
+						"type": "integer"
+					}
 				}
-			},
-			"type": "object"
+			}
 		},
 		"holiday": {
 			"properties": {
